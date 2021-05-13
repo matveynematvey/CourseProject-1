@@ -4,20 +4,25 @@
 #include <vector>
 #include "Vector.h"
 
+
 using namespace std;
 
 class Input
 {
 public:
-    double h, Nx, Ny, x, y;
+    double h, x, y, t0, ht;
+    size_t Nx, Ny, Nt;
     string path = "test2";
     ifstream f;
 
-    Input()
+    Input() {}
+
+    Input(string test)
     {
         //cout << "Enter the folder: "; cin >> path;
-        f.open(path + "/info.txt");
-        f >> path >> h >> path >> Nx >> Ny >> path >> x >> y;
+        f.open(test + "/info.txt");
+        f >> path >> h >> path >> Nx >> Ny >> path >> x >> y >> path >> t0 >> ht >> Nt;
         f.close();
+
     }
 };

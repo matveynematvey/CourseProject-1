@@ -68,27 +68,5 @@ double norm(const vector<double>& vec)
 }
 
 
-inline double u(double x, double y)
-{
-    return x + y;
-}
-
-inline double func(double x, double y)
-{
-    return u(x, y)*1;
-}
-
-vector<double> MultVec(const vector<double>& vec1, const vector<double>& vec2)
-{
-   int n = vec1.size();
-   vector<double> res(n, 0);
-
-   for (int i = 0; i < n; i++)
-      res[i] = vec1[i] * vec2[i];
-
-   return res;
-}
-
-
 
 

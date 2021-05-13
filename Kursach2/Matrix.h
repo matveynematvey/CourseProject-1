@@ -13,17 +13,31 @@ class Matrix
 public:
     vector<vector<double>> D, localM, localG, constM = { {2, 1 , 1}, {1, 2, 1}, {1, 1, 2} };
     vector<int> ig, jg, index;
-    vector<double> x, y, hx, hy, globalF, globalM, globalG, globalMdi, globalGdi, globalDI, globalTR;
-    size_t Count, CountN;
+    vector<double> x, y, t, hx, hy, localF, globalF, globalM, globalG, globalMdi, globalGdi, globalDI, globalTR;
+    size_t Count, CountN, indTime1;
     double detD, lambda = 1, gamma = 1;
     Input inf;
+    string test1;
 
-    Matrix()
+    Matrix() {}
+
+    Matrix(string test, size_t indTime)
     {
-        Input inf = Input();
+        this->indTime1 = indTime;
+        inf = Input(test);
         Resize();
         Step();
         AssembleGlobalMatrices();
+    }
+
+    inline double u(double x, double y, double t)
+    {
+        return t*t*t + x*x*x;
+    }
+
+    inline double func(double x, double y, double t)
+    {
+        return  -6*x + 3*t*t*gamma;
     }
 
     void Resize()
@@ -33,11 +47,13 @@ public:
         index.resize(3);
         x.resize(inf.Nx + 1);
         y.resize(inf.Nx + 1);
+        t.resize(inf.Nt);
         hx.resize(3);
         hy.resize(3);
         D.resize(3, vector<double>(3));
         localG.resize(3, vector<double>(3));
         localM.resize(3, vector<double>(3));
+        localF.resize(3);
         globalMdi.resize(Count);
         globalGdi.resize(Count);
         globalF.resize(Count);
@@ -47,11 +63,11 @@ public:
 
     void Step()
     {
-        x[0] = inf.x; y[0] = inf.y;
-        for (size_t i = 1; i < inf.Nx + 1; i++)
-            x[i] = x[i - 1] + inf.h;
-        for (size_t i = 1; i < inf.Ny + 1; i++) 
-            y[i] = y[i - 1] + inf.h;
+        x[0] = inf.x; y[0] = inf.y, t[0] = inf.t0;
+        for (size_t i = 1; i < inf.Nx + 1; i++) x[i] = x[i - 1] + inf.h;
+        for (size_t i = 1; i < inf.Ny + 1; i++) y[i] = y[i - 1] + inf.h;
+        for (size_t i = 1; i < inf.Nt; i++)
+            t[i] = t[i - 1] + inf.ht;
     }
 
     void AssembleLocalD(int elem)
@@ -60,13 +76,13 @@ public:
         if (elem % 2)   //нечетные элементы
         {
             index[0] = (elem + 1) / 2 + floored; index[1] = index[0] + inf.Nx; index[2] = index[1] + 1;    //номера узлов
-            hx[0] = x[index[0] % 3], hx[2] = hx[0], hx[1] = hx[0] - inf.h, hy[0] = y[floored], hy[1] = hy[0] + inf.h, hy[2] = hy[1];
+            hx[0] = x[index[0] % (inf.Nx + 1)], hx[2] = hx[0], hx[1] = hx[0] - inf.h, hy[0] = y[floored], hy[1] = hy[0] + inf.h, hy[2] = hy[1];
         }
         else            //четные эелменты
         {
             index[0] = elem / 2 + floored; index[1] = index[0] + 1; index[2] = index[0] + inf.Nx + 1;
             hy[0] = y[floored];
-            hx[0] = x[index[0] % 3], hx[1] = hx[0] + inf.h, hx[2] = hx[0], hy[0] = y[floored], hy[1] = hy[0], hy[2] = hy[0] + inf.h;
+            hx[0] = x[index[0] % (inf.Nx + 1)], hx[1] = hx[0] + inf.h, hx[2] = hx[0], hy[0] = y[floored], hy[1] = hy[0], hy[2] = hy[0] + inf.h;
         }
         detD = (hx[1] - hx[0]) * (hy[2] - hy[0]) - (hx[2] - hx[0]) * (hy[1] - hy[0]);
         D[0][0] = hx[1] * hy[2] - hx[2] * hy[1]; D[0][1] = hy[1] - hy[2]; D[0][2] = hx[2] - hx[1];
@@ -85,14 +101,19 @@ public:
 
     void AssembleLocalM()
     {
-        localM = (gamma * detD / 24) * constM;
+        localM = (abs(detD) * gamma / 24) * constM;
     }
 
 
     void AssembleGlobalF()
     {
         for (size_t i = 0; i < 3; i++)
-            globalF[index[i]] += (gamma * detD / 24) * func(hx[i],hy[i]) * (constM[i][0] + constM[i][1] + constM[i][2]);
+        {
+            localF[i] = func(hx[i], hy[i], t[indTime1]);
+        }
+        localF = (abs(detD) / 24) * (constM * localF);
+        for (size_t i = 0; i < 3; i++)
+            globalF[index[i]] += localF[i];
     }
 
 
@@ -107,8 +128,6 @@ public:
             FormPortrait();
         }
         globalTR.resize(ig[Count]);
-        globalDI = globalMdi + globalGdi;
-        globalTR = globalM + globalG;
     }
 
     void FormPortrait()
